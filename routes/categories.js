@@ -7,6 +7,8 @@ const router = express.Router();
 // Category model'ini import ediyoruz
 const Category = require('../models/Categories');
 
+const Plant = require('../models/Plants');
+
 // ===== CATEGORY CRUD İŞLEMLERİ (Create, Read, Update, Delete) =====
 
 // 1. READ - Tüm kategorileri getir (GET /api/categories)
@@ -42,6 +44,33 @@ router.get('/:id', async (req, res) => {
             success: true,
             data: category
         });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
+// 3. READ - Kategoriye ait bitkileri getir (GET /api/categories/:id/plants)
+router.get('/:id/plants', async (req, res) => {
+    try {
+        const categoryId = req.params.id;
+
+        // Bu kategoriye ait tüm bitkileri bul
+        const plants = await Plant.find({ categoryId }).populate('categoryId');
+
+        // Görsel URL'si ekleyelim
+        const plantsWithImageUrl = plants.map(plant => ({
+            ...plant.toObject(),
+            imageUrl: `${req.protocol}://${req.get('host')}/images/${plant.image}`
+        }));
+
+        res.json({
+            success: true,
+            data: plantsWithImageUrl
+        });
+
     } catch (error) {
         res.status(500).json({
             success: false,
@@ -113,23 +142,30 @@ router.put('/:id', async (req, res) => {
 // 5. DELETE - Kategori sil (DELETE /api/categories/:id)
 router.delete('/:id', async (req, res) => {
     try {
-        const category = await Category.findByIdAndDelete(req.params.id);
+        const categoryId = req.params.id;
 
-        if (!category) {
+        // 1. Kategoriyi sil
+        const deleted = await Category.findByIdAndDelete(categoryId);
+
+        if (!deleted) {
             return res.status(404).json({
                 success: false,
                 message: 'Kategori bulunamadı'
             });
         }
 
+        // 2. O kategoriye bağlı tüm bitkileri "inactive" yap
+        const result = await Plant.updateMany(
+            { categoryId: categoryId },
+            { $set: { status: 'inactive' } }
+        );
+
         res.json({
             success: true,
-            message: 'Kategori silindi',
-            deletedData: {
-                id: category._id,
-                name: category.name
-            }
+            message: 'Kategori silindi ve bağlı bitkiler pasif hale getirildi',
+            modifiedCount: result.modifiedCount // kaç bitki etkilendi
         });
+
     } catch (error) {
         res.status(500).json({
             success: false,
