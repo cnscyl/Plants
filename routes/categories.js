@@ -14,7 +14,16 @@ const Plant = require('../models/Plants');
 // 1. READ - Tüm kategorileri getir (GET /api/categories)
 router.get('/', async (req, res) => {
     try {
-        const categories = await Category.find(); // Tüm kategorileri getir
+
+      const filter = {};
+
+    // Eğer ?search=... parametresi varsa, filtreye uygula
+    if (req.query.search) {
+      const keyword = req.query.search.trim();
+      filter.name = { $regex: keyword, $options: 'i' }; // i → büyük/küçük harf duyarsız
+    }
+
+        const categories = await Category.find(filter); // Tüm kategorileri getir
 
         res.json({
             success: true,
