@@ -9,6 +9,10 @@ const Category = require('../models/Categories');
 
 const Plant = require('../models/Plants');
 
+const upload = require('../config/multer');
+const path = require('path');
+const fs = require('fs');
+
 // ===== CATEGORY CRUD İŞLEMLERİ (Create, Read, Update, Delete) =====
 
 // 1. READ - Tüm kategorileri getir (GET /api/categories)
@@ -194,30 +198,38 @@ router.get('/:id', async (req, res) => {
 
 
 // 3. CREATE - Yeni kategori oluştur (POST /api/categories)
-router.post('/', async (req, res) => {
-    try {
-        const { name, description, icon, parentId } = req.body;
+router.post('/', upload.single('image'), async (req, res) => {
+  try {
+    const { name, description, icon, parentId } = req.body;
 
-        const category = new Category({
-            name,
-            description,
-            icon,
-            parentId
-        });
+    const category = new Category({
+      name,
+      description,
+      icon,
+      parentId,
+      image: req.file ? req.file.filename : undefined
+    });
 
-        await category.save();
+    await category.save();
 
-        res.status(201).json({
-            success: true,
-            message: 'Kategori başarıyla oluşturuldu',
-            data: category
-        });
-    } catch (error) {
-        res.status(400).json({
-            success: false,
-            message: error.message
-        });
+    res.status(201).json({
+      success: true,
+      message: 'Kategori başarıyla oluşturuldu',
+      data: {
+        ...category.toObject(),
+        imageUrl: req.file
+          ? `${req.protocol}://${req.get('host')}/images/${req.file.filename}`
+          : null
+      }
+    });
+  } catch (error) {
+    // Yüklenen dosyayı sil (hata varsa)
+    if (req.file) {
+      fs.unlink(path.join('public/images', req.file.filename), () => {});
     }
+
+    res.status(400).json({ success: false, message: error.message });
+  }
 });
 
 // 4. UPDATE - Kategori güncelle (PUT /api/categories/:id)
