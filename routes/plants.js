@@ -211,6 +211,34 @@ router.post('/', upload.single('image'), async (req, res) => {
     }
 });
 
+// POST /api/plants/assign-categories → toplu kategori atama
+router.post('/assign-categories', async (req, res) => {
+  try {
+    const { plantIds, categoryIds } = req.body;
+
+    if (!Array.isArray(plantIds) || !Array.isArray(categoryIds)) {
+      return res.status(400).json({
+        success: false,
+        message: 'plantIds ve categoryIds alanları dizi (array) olmalıdır.'
+      });
+    }
+
+    const result = await Plants.updateMany(
+      { _id: { $in: plantIds } },
+      { $addToSet: { categoryIds: { $each: categoryIds } } }
+    );
+
+    res.json({
+      success: true,
+      message: `Toplam ${result.modifiedCount} bitkiye kategori(ler) eklendi.`,
+      modifiedCount: result.modifiedCount
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+
 // 4. UPDATE - Bitki güncelle (PUT /api/plants/:id)
 // HTTP PUT method: Mevcut veriyi güncelleme işlemleri için kullanılır
 // upload.single('image'): 'image' field'ından tek dosya upload'u kabul eder (opsiyonel)
