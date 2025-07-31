@@ -32,28 +32,8 @@ const queryBuilder = require('../utils/queryBuilder');
 // GET /api/plants?date_from=2024-01-01        - Belirli tarihten sonra
 router.get('/', async (req, res) => {
     try {
-
         // Eğer ?category=... parametresi varsa, kategori adına göre ID bulup categoryId olarak filtreye ekle
-// ?category=İç Mekan gibi bir kategori adı geldiyse, categoryId'sini bul ve filtreye ekle
-        if (req.query.category) {
-            const categoryName = req.query.category.trim();
-
-            const category = await Category.findOne({ name: categoryName }).collation({
-                locale: 'tr', strength: 1 // strength: 1 → sadece harf eşleşmesi, büyük/küçük farkı dikkate alınmaz
-            });
-
-            if (category) {
-                req.query[`filter[categoryIds]`] = category._id.toString();  
-            } else {
-                return res.status(404).json({
-                    success: false,
-                    message: `Kategori bulunamadı: ${req.query.category}`
-                });
-            }
-        }
-
-
-
+        // ?category=İç Mekan gibi bir kategori adı geldiyse, categoryId'sini bul ve filtreye ekle
         // Advanced Query Builder kullanıyoruz
         // Professional response format ile
         const result = await queryBuilder(Plants, req, {
@@ -76,6 +56,7 @@ router.get('/', async (req, res) => {
             // Date filtering için hangi field kullanılacak
             dateField: 'createdAt'
         });
+
         await Plants.populate(result.data, { path: 'categoryIds' });
         
         // Image URL'lerini data'ya ekliyoruz
@@ -85,6 +66,7 @@ router.get('/', async (req, res) => {
             imageUrl: `${req.protocol}://${req.get('host')}/images/${plant.image}`
         }));
         
+
         // Professional response format
         // data field'ını güncellenmiş verilerle değiştiriyoruz
         const response = {

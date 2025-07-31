@@ -4,6 +4,7 @@
 //
 // Bu modül herhangi bir Mongoose model'i ile kullanılabilir
 // Enterprise-level uygulamalarda standart olarak kullanılan yapı
+const Category = require('../models/Categories');
 
 /**
  * Advanced Query Builder - Gelişmiş Sorgu Oluşturucu
@@ -20,6 +21,9 @@
  *     searchFields: ['name', 'description']
  * });
  */
+
+// import Category from '../models/Categories'; // Kategori modelini import ediyoruz
+
 const queryBuilder = async (Model, req, options = {}) => {
     try {
         // ===== KONFİGÜRASYON AYARLARI =====
@@ -114,6 +118,18 @@ const queryBuilder = async (Model, req, options = {}) => {
                 filterToProcess = manualFilter;
             }
         }
+          if (req.query.category) {
+                    const categoryName = req.query.category.trim();
+        
+                    const category = await Category.findOne({ name: categoryName }).collation({
+                        locale: 'tr', strength: 1 // strength: 1 → sadece harf eşleşmesi, büyük/küçük farkı dikkate alınmaz
+                    });
+        
+                    if (category) {
+                        filterObject["categoryIds"] = category._id;  
+                        console.log(`Kategori bulundu: ${categoryName} (${category._id})`);
+                    } 
+                }
 
         // Filter objesi varsa işleme devam et
         if (filterToProcess && typeof filterToProcess === 'object') {
