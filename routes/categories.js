@@ -28,6 +28,135 @@ router.get('/', async (req, res) => {
     }
 });
 
+// 5. READ - Kategori ağacı yapısını getir (GET /api/categories/tree)
+router.get('/tree', async (req, res) => {
+  try {
+    const categories = await Category.find().lean();
+    const map = new Map();
+
+    categories.forEach(cat => map.set(cat._id.toString(), { ...cat, children: [] }));
+
+    const tree = [];
+    categories.forEach(cat => {
+      if (cat.parentId) {
+        const parent = map.get(cat.parentId.toString());
+        if (parent) parent.children.push(map.get(cat._id.toString()));
+      } else {
+        tree.push(map.get(cat._id.toString()));
+      }
+    });
+
+    res.json({ success: true, data: tree });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// GET /api/categories/most-popular → en çok bitki olan kategoriler
+router.get('/most-popular', async (req, res) => {
+  try {
+    const result = await Plant.aggregate([
+      { $unwind: '$categoryIds' }, // Her kategori için ayrı kayıt üret
+      { $group: { _id: '$categoryIds', count: { $sum: 1 } } }, // kategoriye göre grupla
+      { $sort: { count: -1 } }, // çoktan aza sırala
+      {
+        $lookup: {
+          from: 'categories', // category koleksiyonundan
+          localField: '_id',
+          foreignField: '_id',
+          as: 'category'
+        }
+      },
+      { $unwind: '$category' }, // tek objeye indir
+      {
+        $project: {
+          _id: 0,
+          categoryId: '$category._id',
+          name: '$category.name',
+          icon: '$category.icon',
+          count: 1
+        }
+      }
+    ]);
+
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+
+// Tüm kategoriler + varsa bitki sayısı, yoksa 0
+router.get('/with-counts', async (req, res) => {
+  try {
+    const result = await Category.aggregate([
+      {
+        $lookup: {
+          from: 'plants',
+          localField: '_id',
+          foreignField: 'categoryIds',
+          as: 'plants'
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          categoryId: '$_id',
+          name: 1,
+          icon: 1,
+          count: { $size: '$plants' }
+        }
+      },
+      { $sort: { count: -1 } }
+    ]);
+
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+
+
+
+// 4. READ - Kategoriye ait alt kategorileri getir (GET /api/categories/:id/children)
+router.get('/:id/children', async (req, res) => {
+  try {
+    const children = await Category.find({ parentId: req.params.id });
+    res.json({ success: true, data: children });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 3. READ - Kategoriye ait bitkileri getir (GET /api/categories/:id/plants)
+router.get('/:id/plants', async (req, res) => {
+    try {
+        const categoryId = req.params.id;
+
+        // Bu kategoriye ait tüm bitkileri bul
+        const plants = await Plant.find({ categoryIds: categoryId }).populate('categoryIds');
+
+        // Görsel URL'si ekleyelim
+        const plantsWithImageUrl = plants.map(plant => ({
+            ...plant.toObject(),
+            imageUrl: `${req.protocol}://${req.get('host')}/images/${plant.image}`
+        }));
+
+        res.json({
+            success: true,
+            data: plantsWithImageUrl
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
+
 // 2. READ - Tek kategori getir (GET /api/categories/:id)
 router.get('/:id', async (req, res) => {
     try {
@@ -52,42 +181,19 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-// 3. READ - Kategoriye ait bitkileri getir (GET /api/categories/:id/plants)
-router.get('/:id/plants', async (req, res) => {
-    try {
-        const categoryId = req.params.id;
 
-        // Bu kategoriye ait tüm bitkileri bul
-        const plants = await Plant.find({ categoryId }).populate('categoryId');
 
-        // Görsel URL'si ekleyelim
-        const plantsWithImageUrl = plants.map(plant => ({
-            ...plant.toObject(),
-            imageUrl: `${req.protocol}://${req.get('host')}/images/${plant.image}`
-        }));
-
-        res.json({
-            success: true,
-            data: plantsWithImageUrl
-        });
-
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
-    }
-});
 
 // 3. CREATE - Yeni kategori oluştur (POST /api/categories)
 router.post('/', async (req, res) => {
     try {
-        const { name, description, icon } = req.body;
+        const { name, description, icon, parentId } = req.body;
 
         const category = new Category({
             name,
             description,
-            icon
+            icon,
+            parentId
         });
 
         await category.save();
@@ -156,7 +262,7 @@ router.delete('/:id', async (req, res) => {
 
         // 2. O kategoriye bağlı tüm bitkileri "inactive" yap
         const result = await Plant.updateMany(
-            { categoryId: categoryId },
+            { categoryIds: categoryId },
             { $set: { status: 'inactive' } }
         );
 

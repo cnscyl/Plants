@@ -24,11 +24,11 @@ const plantSchema = new mongoose.Schema({
         required: true       // Zorunlu alan: Her bitkinin resmi olmalı
     },
 
-    categoryId: {
+    categoryIds: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Category',
     required: true
-  },
+  }],
     // status field'ı - Bitkinin durumu (aktif/pasif)
     status: {
         type: String,                    // Veri tipi: String

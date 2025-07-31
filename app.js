@@ -55,6 +55,8 @@ uploadDirectories.forEach(dir => {
 // req.body'yi kullanabilmek için gerekli
 // Content-Type: application/json olan request'ler için çalışır
 app.use(express.json());
+// URL Encoded Middleware
+app.use(express.urlencoded({ extended: true }));
 
 // Static Files Middleware
 // express.static(): public dizinindeki dosyaları statik olarak serve eder

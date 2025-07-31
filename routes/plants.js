@@ -43,7 +43,7 @@ router.get('/', async (req, res) => {
             });
 
             if (category) {
-                req.query[`filter[categoryId]`] = category._id.toString();  
+                req.query[`filter[categoryIds]`] = category._id.toString();  
             } else {
                 return res.status(404).json({
                     success: false,
@@ -66,17 +66,17 @@ router.get('/', async (req, res) => {
             allowedSortFields: ['name', 'status', 'createdAt', 'updatedAt'],
             
             // Güvenlik: Hangi field'larda filtreleme yapılabilir
-            allowedFilterFields: ['name', 'description', 'status', 'categoryId'],
+            allowedFilterFields: ['name', 'description', 'status', 'categoryIds'],
             
             // İsterseniz tüm field'lara izin vermek için: allowedFilterFields: []
             
             // Global search: Hangi field'larda arama yapılabilir
-            searchFields: ['name', 'description', 'categoryId'],
+            searchFields: ['name', 'description', 'categoryIds'],
             
             // Date filtering için hangi field kullanılacak
             dateField: 'createdAt'
         });
-        await Plants.populate(result.data, { path: 'categoryId' });
+        await Plants.populate(result.data, { path: 'categoryIds' });
         
         // Image URL'lerini data'ya ekliyoruz
         const dataWithImageUrls = result.data.map(plant => ({
@@ -112,7 +112,7 @@ router.get('/:id', async (req, res) => {
     try {
         // req.params.id: URL'den gelen dinamik parametre
         // Plants.findById(): MongoDB'de ID'ye göre tek kayıt bulma
-        const plant = await Plants.findById(req.params.id).populate('categoryId');
+        const plant = await Plants.findById(req.params.id).populate('categoryIds');
 
         
         // Bitki bulunamadığında kontrol
@@ -167,7 +167,11 @@ router.post('/', upload.single('image'), async (req, res) => {
             // Full path: public/images/filename.jpg
             // Database'de: filename.jpg (public/images prefix'i otomatik eklenir)
             image: req.file.filename,
-            categoryId: req.body.categoryId
+            categoryIds: req.body.categoryIds
+            ? Array.isArray(req.body.categoryIds)
+            ? req.body.categoryIds
+            : [req.body.categoryIds]
+            : existingPlant.categoryIds
         };
         
         // new Plants(): Yeni bitki instance'ı oluştur
@@ -225,7 +229,12 @@ router.put('/:id', upload.single('image'), async (req, res) => {
         const updateData = {
             name: req.body.name || existingPlant.name,
             description: req.body.description || existingPlant.description,
-            status: req.body.status || existingPlant.status
+            status: req.body.status || existingPlant.status,
+            categoryIds: req.body.categoryIds
+            ? Array.isArray(req.body.categoryIds)
+            ? req.body.categoryIds
+            : [req.body.categoryIds]
+            : existingPlant.categoryIds
         };
         
         // Eğer yeni resim upload edildiyse
