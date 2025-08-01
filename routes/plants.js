@@ -51,7 +51,7 @@ router.get('/', async (req, res) => {
             // İsterseniz tüm field'lara izin vermek için: allowedFilterFields: []
             
             // Global search: Hangi field'larda arama yapılabilir
-            searchFields: ['name', 'description', 'categoryIds'],
+            searchFields: ['name', 'description', 'categoryIds', 'status'],
             
             // Date filtering için hangi field kullanılacak
             dateField: 'createdAt'
