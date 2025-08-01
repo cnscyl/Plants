@@ -13,33 +13,36 @@ const upload = require('../config/multer');
 const path = require('path');
 const fs = require('fs');
 
+const queryBuilder = require('../utils/queryBuilder');
+
+
 // ===== CATEGORY CRUD İŞLEMLERİ (Create, Read, Update, Delete) =====
 
 // 1. READ - Tüm kategorileri getir (GET /api/categories)
 router.get('/', async (req, res) => {
-    try {
+  try {
+    const result = await queryBuilder(Category, req, {
+      defaultLimit: 5,
+      maxLimit: 50,
+      defaultSort: 'createdAt',
+      allowedSortFields: ['name', 'createdAt', 'updatedAt'],
+      allowedFilterFields: ['name', 'description', 'parentId'],
+      searchFields: ['name', 'description'],
+      dateField: 'createdAt'
+    });
 
-      const filter = {};
-
-    // Eğer ?search=... parametresi varsa, filtreye uygula
-    if (req.query.search) {
-      const keyword = req.query.search.trim();
-      filter.name = { $regex: keyword, $options: 'i' }; // i → büyük/küçük harf duyarsız
-    }
-
-        const categories = await Category.find(filter); // Tüm kategorileri getir
-
-        res.json({
-            success: true,
-            data: categories
-        });
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
-    }
+    res.json({
+      success: true,
+      ...result
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
 });
+
 
 // 5. READ - Kategori ağacı yapısını getir (GET /api/categories/tree)
 router.get('/tree', async (req, res) => {
