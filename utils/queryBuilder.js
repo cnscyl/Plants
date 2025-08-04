@@ -150,19 +150,18 @@ const queryBuilder = async (Model, req, options = {}) => {
                     } else {
                         // Tek değer filtreleme
                         if (typeof filterValue === 'string') {
-                            // Status gibi enum field'lar için tam eşleşme
-                            if (field === 'status') {
+                            if (field === 'status' || field === 'categoryIds' || field.endsWith('Id')) {
+                                // ObjectId ya da enum ise regex değil, direkt eşleşme
                                 filterObject[field] = filterValue;
                             } else {
-                                // Text field'lar için kısmi eşleşme (contains)
-                                // Special characters'ları escape et (güvenlik)
+                                // String alanlara regex uygula (kısmi arama için)
                                 const escapedValue = filterValue.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                                // MongoDB regex: case insensitive search
                                 filterObject[field] = { 
                                     $regex: new RegExp(escapedValue, 'i') 
                                 };
                             }
-                        } else {
+                        }
+                        else {
                             // Non-string değerler (number, boolean vb.) için direkt eşleşme
                             filterObject[field] = filterValue;
                         }
